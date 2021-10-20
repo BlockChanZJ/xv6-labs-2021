@@ -1,0 +1,23 @@
+
+xv6 kernel is booting
+
+hart 1 starting
+hart 2 starting
+init: starting sh
+$ sh < xargstest.sh
+$ echo DONE
+mkdir: a failed to create
+$ $ mkdir: c failed to create
+$ $ $ grep: cannot open dirname:
+grep: cannot open dirname:
+grep: cannot open dirname:
+grep: cannot open dirname:
+grep: cannot open dirname:
+hello
+grep: cannot open dirname:
+hello
+hello
+grep: cannot open dirname:
+grep: cannot open dirname:
+grep: cannot open dirname:
+$ $ DONE
