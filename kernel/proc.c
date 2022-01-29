@@ -244,6 +244,9 @@ userinit(void)
 
   p->state = RUNNABLE;
 
+  p->passed_intervals = 0;
+  p->in_handler = 0;
+
   release(&p->lock);
 }
 

@@ -1,0 +1,6 @@
+1. a2
+2. optimized by compiler (li a1 12)
+3. 0x630 1536(ra)
+4. ra = 0x30
+5. HE110 World, 0x72, 0x6c, 0x64 represents r, l, d. When big-median, change i to 0x726c6400
+6. not sure, 1 in my environment
