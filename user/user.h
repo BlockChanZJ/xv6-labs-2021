@@ -23,7 +23,6 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-// blockchanzj
 int sigalarm(int ticks, void (*handler)());
 int sigreturn(void);
 

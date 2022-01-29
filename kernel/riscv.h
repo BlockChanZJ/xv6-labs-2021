@@ -299,14 +299,11 @@ r_sp()
   return x;
 }
 
-
-// blockchanzj
-// read frame point
 static inline uint64
-r_fp()
+r_fp() 
 {
   uint64 x;
-  asm volatile("mv %0, fp" : "=r" (x));
+  asm volatile("mv %0, fp" : "=r" (x) );
   return x;
 }
 
