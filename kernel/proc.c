@@ -340,7 +340,6 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-
   if(p == initproc)
     panic("init exiting");
 

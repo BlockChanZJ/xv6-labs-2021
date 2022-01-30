@@ -65,14 +65,50 @@ usertrap(void)
     intr_on();
 
     syscall();
-  } else if((which_dev = devintr()) != 0){
-    // ok
-  } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    p->killed = 1;
-  }
+  } else if (r_scause() == 13 || r_scause() == 15) {
+    // page fault
+    uint64 va = r_stval(), pa;
+    struct proc *p = myproc();
+    pte_t *pte;
+    char *mem;
+    uint flags;
 
+    if(va >= MAXVA || va > p->sz) {
+      p->killed = 1;
+    } else {
+      va = PGROUNDDOWN(va);
+      if((pte = walk(p->pagetable, va, 0)) == 0) {
+        p->killed = 1;
+      } else {
+        if((*pte & PTE_C) != 0){
+          if((mem = kalloc()) == 0){
+            p->killed = 1;
+          } else {
+            pa = PTE2PA(*pte);
+            *pte = ((*pte) | PTE_W) & (~PTE_C);
+            flags = PTE_FLAGS(*pte);
+            memmove(mem, (char*)pa, PGSIZE);
+            //key point to fix remap panic
+            uvmunmap(p->pagetable, va, 1, 1);
+            if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
+              uvmunmap(p->pagetable, va, 1, 1);
+              p->killed = 1;
+            }
+          }
+        } else {
+          p->killed = 1;
+        }
+      }
+    }
+
+  } else if((which_dev = devintr()) != 0){
+      // ok
+  } else {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      p->killed = 1;
+  }
+  // printf("kill: %d\n",p->killed);
   if(p->killed)
     exit(-1);
 
@@ -80,6 +116,7 @@ usertrap(void)
   if(which_dev == 2)
     yield();
 
+  // printf("qwq!\n");
   usertrapret();
 }
 

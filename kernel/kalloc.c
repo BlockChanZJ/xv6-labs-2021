@@ -18,6 +18,8 @@ struct run {
   struct run *next;
 };
 
+int counter[(PHYSTOP - KERNBASE) / PGSIZE];
+
 struct {
   struct spinlock lock;
   struct run *freelist;
@@ -27,6 +29,7 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  memset(counter, 0, sizeof(counter));
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -35,8 +38,10 @@ freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
+  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE) {
+    pageref_inc(p);
     kfree(p);
+  }
 }
 
 // Free the page of physical memory pointed at by v,
@@ -50,6 +55,11 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
+  
+  // free when counter = 0
+  pageref_dec((void*)pa);
+  if (get_pageref((void*)pa) > 0)
+    return;
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -76,7 +86,38 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
-  if(r)
+  if(r) {
     memset((char*)r, 5, PGSIZE); // fill with junk
+    pageref_inc((void*)r);
+  }
   return (void*)r;
+}
+
+void 
+pageref_inc(void *pa) 
+{
+  int index = (PGROUNDUP((uint64)pa) - PGROUNDUP((uint64)end)) / PGSIZE;
+  counter[index]++;
+}
+
+void 
+pageref_dec(void *pa) 
+{
+  int index = (PGROUNDUP((uint64)pa) - PGROUNDUP((uint64)end)) / PGSIZE;
+  counter[index]--;
+  if (counter[index] < 0) printf("pa: %p, index: %d, counter: %d\n", pa, index, counter[index]);
+}
+
+void 
+set_pageref(void *pa, int val)
+{
+  int index = (PGROUNDUP((uint64)pa) - PGROUNDUP((uint64)end)) / PGSIZE;
+  counter[index] = val;
+}
+
+int 
+get_pageref(void *pa) 
+{
+  int index = (PGROUNDUP((uint64)pa) - PGROUNDUP((uint64)end)) / PGSIZE;
+  return counter[index];
 }
