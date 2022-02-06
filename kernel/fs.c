@@ -377,8 +377,8 @@ iunlockput(struct inode *ip)
 static uint
 bmap(struct inode *ip, uint bn)
 {
-  uint addr, *a, *a2;
-  struct buf *bp, *bp2;
+  uint addr, *a;
+  struct buf *bp;
 
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0)
@@ -402,26 +402,27 @@ bmap(struct inode *ip, uint bn)
   }
   bn -= NINDIRECT;
 
-  if (bn < NDBINDIRECT) {
-    if ((addr = ip->addrs[NDIRECT + 1]) == 0) 
+  if(bn < NDOUBLEINDIRECT){
+    // load doubly-indirect block, allocating if necessary.
+    if((addr = ip->addrs[NDIRECT+1]) == 0){
       ip->addrs[NDIRECT+1] = addr = balloc(ip->dev);
+    }
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
-    if ((addr = a[bn / NINDIRECT]) == 0) {
-      a[bn / NINDIRECT] = addr = balloc(ip->dev);
+    if((addr = a[bn/NINDIRECT]) == 0){
+      a[bn/NINDIRECT] = addr = balloc(ip->dev);
       log_write(bp);
     }
-    bp2 = bread(ip->dev, addr);
-    a2 = (uint*)bp2->data;
-    if ((addr = a2[bn % NINDIRECT]) == 0) {
-      a2[bn % NINDIRECT] = addr = balloc(ip->dev);
-      log_write(bp2);
+    brelse(bp);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[bn%NINDIRECT]) == 0){
+      a[bn%NINDIRECT] = addr = balloc(ip->dev);
+      log_write(bp);
     }
-    brelse(bp2);
     brelse(bp);
     return addr;
   }
-
 
   panic("bmap: out of range");
 }
@@ -431,9 +432,9 @@ bmap(struct inode *ip, uint bn)
 void
 itrunc(struct inode *ip)
 {
-  int i, j, k;
-  struct buf *bp, *bp2;
-  uint *a, *a2;
+  int i, j;
+  struct buf *bp;
+  uint *a;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -454,17 +455,22 @@ itrunc(struct inode *ip)
     ip->addrs[NDIRECT] = 0;
   }
 
-  if (ip->addrs[NDIRECT+1]) {
+  int k;
+  uint *a_doubly;
+  struct buf *bp_doubly;
+  if(ip->addrs[NDIRECT+1]){
     bp = bread(ip->dev, ip->addrs[NDIRECT+1]);
     a = (uint*)bp->data;
-    for (j = 0; j < NINDIRECT; j++) {
-      if (a[j]) {
-        bp2 = bread(ip->dev, a[j]);
-        a2 = (uint*)bp2->data;
-        for (k = 0; k < NINDIRECT; k++) {
-          if (a2[k]) bfree(ip->dev, a2[k]);
+    for(j = 0; j < NINDIRECT; j++){
+      if(a[j]){
+        bp_doubly = bread(ip->dev, a[j]);
+        a_doubly = (uint*)bp_doubly->data;
+        for(k = 0; k < NINDIRECT; k++){
+          if(a_doubly[k]){
+            bfree(ip->dev, a_doubly[k]);
+          }
         }
-        brelse(bp2);
+        brelse(bp_doubly);
         bfree(ip->dev, a[j]);
       }
     }

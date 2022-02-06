@@ -297,7 +297,6 @@ sys_open(void)
 
   begin_op();
 
-
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
@@ -320,30 +319,28 @@ sys_open(void)
         char target[MAXPATH];
         int recursive_depth = 0;
         while(1){
-            if(recursive_depth >= 10){
-              iunlockput(ip);
-              end_op();
-              return -1;
-            }
-            if(readi(ip, 0, (uint64)target, ip->size-MAXPATH, MAXPATH) != MAXPATH){
-              return -1;
-            }
-            iunlockput(ip);
-            if((ip = namei(target)) == 0){
-              end_op();
-              return -1;
-            }
-            ilock(ip);
-            if(ip->type != T_SYMLINK){
-              break;
-            }
-            recursive_depth++;
-          }
+          if(recursive_depth >= 10){
+	    iunlockput(ip);
+	    end_op();
+	    return -1;
+	  }
+          if(readi(ip, 0, (uint64)target, ip->size-MAXPATH, MAXPATH) != MAXPATH){
+	    return -1;
+	  }
+          iunlockput(ip);
+	  if((ip = namei(target)) == 0){
+	    end_op();
+	    return -1;
+	  }
+	  ilock(ip);
+	  if(ip->type != T_SYMLINK){
+	    break;
+	  }
+	  recursive_depth++;
         }
       }
     }
-
-
+  }
   if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
     iunlockput(ip);
     end_op();
